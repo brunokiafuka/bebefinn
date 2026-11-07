@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#2f9ad8" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Bebefinn" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Ctext y=%22.9em%22 font-size=%2290%22%3E%F0%9F%90%A0%3C/text%3E%3C/svg%3E" />
+  <title>Bebefinn – Learn &amp; Play Under the Sea</title>
+  <link rel="preload" href="fonts/baloo2-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="stylesheet" href="styles.css" />
+  <script type="importmap">{ "imports": { "three": "./vendor/three.module.js" } }</script>
+</head>
+<body>
+  <canvas id="scene"></canvas>
+
+  <div id="ui">
+    <section id="loading" class="screen active">
+      <div class="loader"><span></span><span></span><span></span></div>
+    </section>
+
+    <section id="title" class="screen">
+      <h1 class="logo" aria-label="Bebefinn">
+        <span>B</span><span>e</span><span>b</span><span>e</span><span>f</span><span>i</span><span>n</span><span>n</span>
+      </h1>
+      <p class="tagline">Learn &amp; play under the sea</p>
+      <div class="title-spacer"></div>
+      <button id="play" class="btn-play" aria-label="Play">
+        <svg viewBox="0 0 24 24"><path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.2-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5z"/></svg>
+      </button>
+    </section>
+
+    <section id="worlds" class="screen">
+      <header class="bar">
+        <button class="btn-round" data-nav="title" aria-label="Back">
+          <svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7" /></svg>
+        </button>
+        <h2>Where shall we swim?</h2>
+        <span class="bar-spacer"></span>
+      </header>
+      <div class="world-grid"></div>
+    </section>
+
+    <section id="stages" class="screen">
+      <header class="bar">
+        <button class="btn-round" data-nav="worlds" aria-label="Back">
+          <svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7" /></svg>
+        </button>
+        <h2 class="stages-title"></h2>
+        <span class="bar-spacer"></span>
+      </header>
+      <div class="stage-path"></div>
+    </section>
+
+    <section id="hud" class="screen">
+      <div class="hud-top">
+        <button id="home" class="btn-round small" aria-label="Back to map">
+          <svg viewBox="0 0 24 24"><path d="M4 11.5L12 5l8 6.5" /><path d="M6.5 10v8.5h11V10" /></svg>
+        </button>
+        <button id="prompt" class="prompt" aria-label="Hear again">
+          <svg viewBox="0 0 24 24" class="spk"><path d="M4 9.5h3.5L12 6v12l-4.5-3.5H4z" /><path d="M15.5 9a4 4 0 0 1 0 6" /><path d="M18 6.5a7.5 7.5 0 0 1 0 11" /></svg>
+          <span class="prompt-text"></span>
+        </button>
+        <div class="pips"></div>
+      </div>
+    </section>
+
+    <section id="complete" class="screen modal">
+      <div class="panel">
+        <div class="ribbon">Hooray!</div>
+        <div class="stars"><i></i><i></i><i></i></div>
+        <p class="sub"></p>
+        <div class="actions">
+          <button class="btn-round alt" data-act="replay" aria-label="Play again">
+            <svg viewBox="0 0 24 24"><path d="M5 12a7 7 0 1 0 2.1-5" /><path d="M5 4.5V8h3.5" /></svg>
+          </button>
+          <button class="btn-round alt" data-act="map" aria-label="Map">
+            <svg viewBox="0 0 24 24"><rect x="5" y="5" width="5.5" height="5.5" rx="1.5"/><rect x="13.5" y="5" width="5.5" height="5.5" rx="1.5"/><rect x="5" y="13.5" width="5.5" height="5.5" rx="1.5"/><rect x="13.5" y="13.5" width="5.5" height="5.5" rx="1.5"/></svg>
+          </button>
+          <button class="btn-round big go" data-act="next" aria-label="Next">
+            <svg viewBox="0 0 24 24"><path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.2-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5z" class="fill"/></svg>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <div class="toggles">
+      <button id="t-sound" class="btn-round small" aria-label="Sound">
+        <svg viewBox="0 0 24 24"><path d="M4 9.5h3.5L12 6v12l-4.5-3.5H4z" /><path class="on" d="M15.5 9a4 4 0 0 1 0 6" /><path class="on" d="M18 6.5a7.5 7.5 0 0 1 0 11" /><path class="off" d="M16 9.5l5 5M21 9.5l-5 5" /></svg>
+      </button>
+      <button id="t-music" class="btn-round small" aria-label="Music">
+        <svg viewBox="0 0 24 24"><path d="M9 17.5V6l10-2v11.5" /><circle cx="6.8" cy="17.5" r="2.3" /><circle cx="16.8" cy="15.5" r="2.3" /><path class="off" d="M4 4l16 16" /></svg>
+      </button>
+      <button id="t-full" class="btn-round small" aria-label="Full screen">
+        <svg viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" /></svg>
+      </button>
+    </div>
+  </div>
+
+  <script type="module" src="src/main.js"></script>
+</body>
+</html>
