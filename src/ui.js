@@ -1,8 +1,9 @@
-import { starsFor, isUnlocked } from './progress.js';
-import { ROUNDS } from './levels.js';
+import { doneFor, isUnlocked } from './progress.js';
+import { ROUNDS, WORLDS } from './levels.js';
 
-const STAR = (on) =>
-  `<svg class="star-ico" viewBox="0 0 24 24"><path d="M12 2.8l2.7 5.6 6.1.8-4.5 4.2 1.1 6.1L12 16.6l-5.4 2.9 1.1-6.1-4.5-4.2 6.1-.8z" fill="${on ? '#ffd23f' : '#d6e2ec'}" stroke="${on ? '#e69b00' : '#aabccb'}" stroke-width="1.6" stroke-linejoin="round"/></svg>`;
+const STICKERS = ['🐙', '🐢', '🦀', '🐳', '🐬', '🦭', '🐡', '🦑', '🐚', '🦞', '🐋', '🦈', '🐠', '🦐', '🐧', '🦦', '🐊', '🐸', '🦆', '🦩'];
+export const stickerFor = (world, stage) => STICKERS[(world * 5 + stage) % STICKERS.length];
+
 const LOCK = `<svg viewBox="0 0 24 24"><rect x="5" y="10.5" width="14" height="10" rx="3"/><path d="M8.5 10.5V8a3.5 3.5 0 0 1 7 0v2.5" fill="none" stroke="#fff" stroke-width="2.6"/></svg>`;
 
 const $ = (s, el = document) => el.querySelector(s);
@@ -41,8 +42,7 @@ export class UI {
     const grid = $('.world-grid');
     grid.innerHTML = '';
     worlds.forEach((w, i) => {
-      const stars = starsFor(progress, w.id, w.stages.length);
-      const total = stars.reduce((a, b) => a + b, 0);
+      const done = doneFor(progress, w.id, w.stages.length);
       const b = document.createElement('button');
       b.className = 'world-card';
       b.style.setProperty('--c', w.color);
@@ -54,7 +54,7 @@ export class UI {
       }).join('');
       b.innerHTML = `${deco}<div class="glyph">${w.emoji ? `<span>${w.glyph}<em>${w.emoji}</em></span>` : w.glyph}</div>
         <div class="name">${w.name}</div>
-        <div class="score">${STAR(total > 0)} ${total} / ${w.stages.length * 3}</div>`;
+        <div class="score">${done.map((d, k) => `<span class="slot${d ? ' got' : ''}">${d ? stickerFor(i, k) : ''}</span>`).join('')}</div>`;
       b.addEventListener('click', () => this.h.world(i));
       grid.appendChild(b);
     });
@@ -64,7 +64,8 @@ export class UI {
     $('.stages-title').textContent = world.name;
     const path = $('.stage-path');
     path.innerHTML = '';
-    const stars = starsFor(progress, world.id, world.stages.length);
+    const done = doneFor(progress, world.id, world.stages.length);
+    const wi = WORLDS.indexOf(world);
     let nextMarked = false;
     world.stages.forEach((s, i) => {
       const unlocked = isUnlocked(progress, world.id, i);
@@ -77,11 +78,11 @@ export class UI {
         b.classList.add('locked');
         b.innerHTML = `${LOCK}<span class="label">${s.name}</span>`;
       } else {
-        if (!nextMarked && stars[i] === 0) {
+        if (!nextMarked && !done[i]) {
           b.classList.add('next');
           nextMarked = true;
         }
-        b.innerHTML = `${i + 1}<span class="mini-stars">${[0, 1, 2].map((k) => STAR(k < stars[i])).join('')}</span><span class="label">${s.name}</span>`;
+        b.innerHTML = `${i + 1}${done[i] ? `<span class="badge">${stickerFor(wi, i)}</span>` : ''}<span class="label">${s.name}</span>`;
       }
       b.addEventListener('click', () => this.h.stage(i, unlocked));
       path.appendChild(b);
@@ -102,9 +103,9 @@ export class UI {
     [...el.children].forEach((c, i) => c.classList.toggle('on', i < done));
   }
 
-  showComplete({ stars, text, hasNext }) {
+  showComplete({ sticker, text, hasNext }) {
     const el = $('#complete');
-    el.querySelectorAll('.stars i').forEach((s, i) => (s.innerHTML = STAR(i < stars)));
+    $('.sticker span', el).textContent = sticker;
     $('.sub', el).textContent = text;
     $('[data-act="next"]', el).style.display = hasNext ? '' : 'none';
     this.show('complete');

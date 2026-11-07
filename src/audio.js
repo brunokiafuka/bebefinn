@@ -206,13 +206,79 @@ if ('speechSynthesis' in window) {
 }
 
 let sayId = 0;
-export function say(text, { rate = 0.88, pitch = 1.2 } = {}) {
+export const voiceKey = (t) => t.trim().toLowerCase().replace(/\s+/g, ' ');
+let clipIndex = {};
+const clipBuffers = new Map();
+let clipSource = null;
+fetch('voice/index.json')
+  .then((r) => (r.ok ? r.json() : {}))
+  .then((j) => (clipIndex = j))
+  .catch(() => {});
+
+function loadClip(file) {
+  if (!clipBuffers.has(file)) {
+    clipBuffers.set(
+      file,
+      fetch('voice/' + file)
+        .then((r) => r.arrayBuffer())
+        .then((b) => new Promise((res, rej) => ctx.decodeAudioData(b, res, rej)))
+        .catch(() => {
+          clipBuffers.delete(file);
+          return null;
+        })
+    );
+  }
+  return clipBuffers.get(file);
+}
+
+async function playClip(file, id) {
+  const buf = await loadClip(file);
+  if (!buf || id !== sayId) return !!buf;
+  if (clipSource) try { clipSource.stop(); } catch {}
+  return new Promise((resolve) => {
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    src.connect(sfxBus);
+    clipSource = src;
+    speaking = true;
+    duck(true);
+    src.onended = () => {
+      if (clipSource === src) clipSource = null;
+      resolve(true);
+    };
+    src.start();
+  });
+}
+
+export function preloadSpeech(parts) {
+  if (!ctx) return;
+  [].concat(parts).forEach((t) => t && clipIndex[voiceKey(t)] && loadClip(clipIndex[voiceKey(t)]));
+}
+
+export async function say(parts, opts) {
+  const list = [].concat(parts).filter(Boolean);
   const id = ++sayId;
+  if ('speechSynthesis' in window) speechSynthesis.cancel();
+  if (clipSource) try { clipSource.stop(); } catch {}
+  for (const text of list) {
+    if (id !== sayId) return;
+    const file = clipIndex[voiceKey(text)];
+    if (file && ctx && prefs.sound) {
+      if (await playClip(file, id)) continue;
+    }
+    await speakTTS(text, opts, id);
+  }
+  if (id === sayId) {
+    speaking = false;
+    duck(false);
+  }
+}
+
+function speakTTS(text, { rate = 0.88, pitch = 1.2 } = {}, id = sayId) {
   if (!prefs.sound || !('speechSynthesis' in window) || !text) {
     return new Promise((r) => setTimeout(r, Math.min(1800, 300 + (text || '').length * 40)));
   }
   return new Promise((resolve) => {
-    speechSynthesis.cancel();
     const u = new SpeechSynthesisUtterance(text);
     if (!voice) voice = pickVoice();
     if (voice) u.voice = voice;
@@ -249,6 +315,8 @@ export function say(text, { rate = 0.88, pitch = 1.2 } = {}) {
 
 export function stopSpeaking() {
   sayId++;
+  if (clipSource) try { clipSource.stop(); } catch {}
+  clipSource = null;
   speaking = false;
   duck(false);
   if ('speechSynthesis' in window) speechSynthesis.cancel();

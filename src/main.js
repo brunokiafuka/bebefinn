@@ -8,10 +8,10 @@ import { tween, updateTweens, Ease, wait, killTweens } from './tween.js';
 import * as audio from './audio.js';
 import { sfx, say } from './audio.js';
 import { WORLDS, ROUNDS, NUM_WORDS, pick, shuffle } from './levels.js';
-import { UI } from './ui.js';
+import { UI, stickerFor } from './ui.js';
 import { labelTexture, cardTexture, slotTexture, shade } from './textures.js';
 import { GEO } from './materials.js';
-import { loadProgress, recordStars, isUnlocked } from './progress.js';
+import { loadProgress, markDone, isUnlocked } from './progress.js';
 
 const PRAISE = ['Yay!', 'Great job!', 'You did it!', 'Super!', 'Wow, well done!', 'Amazing!', 'Hooray!', 'Brilliant!', 'Finn-tastic!'];
 const PALETTE = ['#ff6b8b', '#ffb347', '#5fd36b', '#4cc3ff', '#b48cff', '#ffd23f'];
@@ -288,8 +288,11 @@ async function startStage(wi, si) {
   playRound(tok);
 }
 
+let roundSeq = 0;
 async function playRound(tok) {
   if (tok !== token) return;
+  const seq = ++roundSeq;
+  const stale = () => tok !== token || seq !== roundSeq;
   const W = WORLDS[S.world];
   const st = W.stages[S.stage];
   if (S.round >= ROUNDS) return completeStage(tok);
@@ -298,17 +301,17 @@ async function playRound(tok) {
   S.wrong = 0;
   S.count = 0;
   await clearRound();
-  if (tok !== token) return;
+  if (stale()) return;
   ui.setPrompt(r.text);
   const { cp, region } = regionForRound(r);
   buildDisplay(r.display, region, W.color);
   fin.lookAt(new THREE.Vector3(region.x, region.y, 0));
   await introDisplay();
-  if (tok !== token) return;
+  if (stale()) return;
 
   if (r.intro && r.display?.type === 'takeaway') {
     await say(r.intro[0]);
-    if (tok !== token) return;
+    if (stale()) return;
     const k = r.display.k;
     const leaving = display.items.slice(-k);
     display.items = display.items.slice(0, display.items.length - k);
@@ -328,7 +331,7 @@ async function playRound(tok) {
         }).then(() => (c.visible = false))
       ),
     ]);
-    if (tok !== token) return;
+    if (stale()) return;
   }
 
   if (cp) {
@@ -418,7 +421,7 @@ async function onBubble(b) {
       clearTimeout(hintTimer);
       await wait(0.3);
       bubbles.filter((x) => x.alive).forEach((x) => x.floatAway());
-      return roundSuccess(tok, b.worldPos, `${cap(NUM_WORDS[n])}! `);
+      return roundSuccess(tok, b.worldPos, `${cap(NUM_WORDS[n])}!`);
     }
     say(cap(NUM_WORDS[n]));
     armHint(tok);
@@ -441,7 +444,7 @@ async function onBubble(b) {
   b.wobble();
   sfx.wrong();
   fin.oops();
-  say(r.wrong ? r.wrong(b.choice) : `That's ${b.choice.say}. ${r.prompt}`);
+  say(r.wrong ? r.wrong(b.choice) : [`That's ${b.choice.say}.`, r.prompt]);
   if (S.wrong >= 2) showHint();
   armHint(tok);
 }
@@ -473,20 +476,22 @@ async function onCritter(c) {
     await wait(0.45);
     if (tok !== token || !display) return;
     display.items.forEach((it, i) => setTimeout(() => hop(it, 0.6), i * 90));
-    return roundSuccess(tok, new THREE.Vector3(display.region.x, display.region.y, 0), `${cap(NUM_WORDS[n])}! `);
+    return roundSuccess(tok, new THREE.Vector3(display.region.x, display.region.y, 0), `${cap(NUM_WORDS[n])}!`);
   }
   say(cap(NUM_WORDS[n]));
   armHint(tok);
 }
 
 async function roundSuccess(tok, pos, lead = '') {
+  if (S.successFor === S.round) return;
+  S.successFor = S.round;
   sfx.correct();
   fin.happy();
   fx.burst(pos, 46);
   fx.sparkle(pos, 14);
   S.round++;
   ui.setPips(S.round);
-  await say(`${lead}${S.r.success} ${pick(PRAISE)}`);
+  await say([lead, S.r.success, pick(PRAISE)]);
   if (tok !== token) return;
   await wait(0.35);
   playRound(tok);
@@ -498,10 +503,9 @@ async function completeStage(tok) {
   if (tok !== token) return;
   const W = WORLDS[S.world];
   const st = W.stages[S.stage];
-  const stars = S.mistakes <= 1 ? 3 : S.mistakes <= 4 ? 2 : 1;
-  recordStars(progress, W.id, S.stage, stars);
+  markDone(progress, W.id, S.stage);
   const hasNext = S.stage < W.stages.length - 1;
-  ui.showComplete({ stars, text: hasNext ? `You finished “${st.name}”!` : `You finished all of ${W.name}!`, hasNext });
+  ui.showComplete({ sticker: stickerFor(S.world, S.stage), text: hasNext ? `You finished “${st.name}”!` : `You finished all of ${W.name}!`, hasNext });
   fin.moveTo(finSpot('menu'));
   sfx.win();
   fx.rain(L.W, L.H, 160);

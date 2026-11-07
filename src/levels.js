@@ -34,7 +34,11 @@ function options(correct, pool, n) {
 }
 
 const randomKind = () => pick(Object.keys(KINDS));
-const kindName = (k) => KINDS[k].name;
+const kindName = (k, n = 2) => (n === 1 ? KINDS[k].one || KINDS[k].name : KINDS[k].name);
+const an = (w) => (/^[aeiou]/i.test(w) ? 'an' : 'a');
+const PLURALS = new Set(['grapes']);
+const does = (w) => (PLURALS.has(w) ? 'do' : 'does');
+const starts = (w) => (PLURALS.has(w) ? 'start' : 'starts');
 
 // ---------- content ----------
 export const LETTERS = {
@@ -51,7 +55,7 @@ const WORDS3 = [
   ['fox', '🦊'], ['owl', '🦉'], ['car', '🚗'], ['hat', '👒'], ['cup', '🥤'], ['ant', '🐜'], ['bat', '🦇'], ['bed', '🛏️'],
 ];
 const WORDS4 = [['fish', '🐟'], ['duck', '🦆'], ['ball', '⚽'], ['moon', '🌙'], ['star', '⭐'], ['tree', '🌳'], ['cake', '🎂'], ['frog', '🐸']];
-const spell = (w) => w.split('').join(', ') + '. ' + w + '!';
+const spell = (w) => w.toUpperCase().split('').join(', ') + '. ' + cap(w) + '!';
 
 // ---------- round builders ----------
 function findNumber(n, pool, count) {
@@ -74,7 +78,7 @@ function howMany(n, pool, count) {
     display: { type: 'critters', kind, n },
     choices: options(n, pool, count).map((k) => ({ text: String(k), say: NUM_WORDS[k], correct: k === n })),
     wrong: () => `Hmm, let's count again!`,
-    success: `${cap(NUM_WORDS[n])} ${kindName(kind)}!`,
+    success: `${cap(NUM_WORDS[n])} ${kindName(kind, n)}!`,
   };
 }
 
@@ -86,7 +90,7 @@ function findLetter(L, pool, count) {
     text: `Find ${L}`,
     display: { type: 'card', emoji },
     choices: options(L, pool, count).map((k) => ({ text: k, say: k, correct: k === L })),
-    wrong: (c) => `That's ${c.say}. Find ${L}!`,
+    wrong: (c) => [`That's ${c.say}.`, `Find ${L}!`],
     success: `${L}! ${L} is for ${word}!`,
   };
 }
@@ -99,7 +103,7 @@ function wordToPicture([w, e], pool, count) {
     text: `Find the ${w}`,
     display: { type: 'card', text: w, wide: true },
     choices: opts.map((k) => ({ emoji: pool.find((p) => p[0] === k)[1], say: k, correct: k === w })),
-    wrong: (c) => `That's a ${c.say}. Find the ${w}!`,
+    wrong: (c) => [`That's ${an(c.say)} ${c.say}.`, `Find the ${w}!`],
     success: spell(w),
   };
 }
@@ -112,7 +116,7 @@ function pictureToWord([w, e], pool, count) {
     text: `Which word?`,
     display: { type: 'card', emoji: e },
     choices: opts.map((k) => ({ text: k, say: k, correct: k === w })),
-    wrong: (c) => `That word says ${c.say}. Find ${w}!`,
+    wrong: (c) => [`That word says ${c.say}.`, `Find the word ${w}!`],
     success: spell(w),
   };
 }
@@ -137,7 +141,7 @@ export const WORLDS = [
             prompt: `Let's count the ${kindName(kind)}! Tap each one.`,
             text: `Tap to count!`,
             display: { type: 'critters', kind, n },
-            success: `${cap(NUM_WORDS[n])} ${kindName(kind)}!`,
+            success: `${cap(NUM_WORDS[n])} ${kindName(kind, n)}!`,
           };
         },
       },
@@ -188,9 +192,9 @@ export const WORLDS = [
             prompt: `Which bubble has more ${kindName(kind)}?`,
             text: `Which has more?`,
             display: null,
-            choices: [a, b].map((n) => ({ critters: { kind, n }, say: NUM_WORDS[n], correct: n === max })),
-            wrong: (c) => `That one has ${c.say}. Find more!`,
-            success: `Yes! ${cap(NUM_WORDS[max])} is more!`,
+            choices: [a, b].map((n) => ({ critters: { kind, n }, say: NUM_WORDS[n], n, correct: n === max })),
+            wrong: (c) => [`That one has ${c.say} ${kindName(kind, c.n)}.`, `Find the bubble with more!`],
+            success: `Yes! ${cap(NUM_WORDS[max])} is more than ${NUM_WORDS[Math.min(a, b)]}!`,
           };
         },
       },
@@ -212,10 +216,10 @@ export const WORLDS = [
           const left = n - k;
           return {
             mode: 'choose',
-            prompt: `How many are left?`,
+            prompt: `How many ${kindName(kind, 2)} are left?`,
             text: `${n} − ${k} = ?`,
             display: { type: 'takeaway', kind, n, k },
-            intro: [`There are ${NUM_WORDS[n]} ${kindName(kind)}.`, `Bye bye! ${cap(NUM_WORDS[k])} swim${k === 1 ? 's' : ''} away.`],
+            intro: [`There ${n === 1 ? 'is' : 'are'} ${NUM_WORDS[n]} ${kindName(kind, n)}.`, `Bye bye! ${cap(NUM_WORDS[k])} swim${k === 1 ? 's' : ''} away.`],
             choices: options(left, range(0, 5), 3).map((v) => ({ text: String(v), say: NUM_WORDS[v], correct: v === left })),
             wrong: () => `Let's count again!`,
             success: `${cap(NUM_WORDS[n])} take away ${NUM_WORDS[k]} is ${NUM_WORDS[left]}!`,
@@ -241,11 +245,11 @@ export const WORLDS = [
           const [word, emoji] = LETTERS[L];
           return {
             mode: 'choose',
-            prompt: `${cap(word)}! Which letter does ${word} start with?`,
-            text: `${cap(word)} starts with…`,
+            prompt: `${cap(word)}! Which letter ${does(word)} ${word} start with?`,
+            text: `${cap(word)} ${starts(word)} with…`,
             display: { type: 'card', emoji, text: word },
             choices: options(L, ALPHA.filter((l) => !'QXY'.includes(l)), 3).map((k) => ({ text: k, say: k, correct: k === L })),
-            wrong: (c) => `That's ${c.say}. ${cap(word)} starts with…?`,
+            wrong: (c) => [`That's ${c.say}.`, `${cap(word)} ${starts(word)} with…?`],
             success: `${L}! ${L} for ${word}!`,
           };
         },
@@ -261,7 +265,7 @@ export const WORLDS = [
             text: `Find little ${l}`,
             display: { type: 'card', text: L },
             choices: options(l, ALPHA.slice(0, 12).map((x) => x.toLowerCase()), 3).map((k) => ({ text: k, say: k, correct: k === l })),
-            wrong: (c) => `That's little ${c.say}. Find little ${l}!`,
+            wrong: (c) => [`That's little ${c.say}.`, `Find little ${l}!`],
             success: `Big ${L}, little ${l}!`,
           };
         },
@@ -290,7 +294,7 @@ export const WORLDS = [
             text: `_${w.slice(1)}`,
             display: { type: 'card', emoji: e, text: `_${w.slice(1)}` },
             choices: options(first, 'bcdfhmpst'.split('').concat(first), 3).map((k) => ({ text: k, say: k, correct: k === first })),
-            wrong: (c) => `${c.say}${w.slice(1)}? Not quite! Try again.`,
+            wrong: (c) => [`That's ${c.say.toUpperCase()}.`, `Not quite! Try again.`],
             success: spell(w),
           };
         },
@@ -305,7 +309,7 @@ function sumRound(a, b, count) {
   const s = a + b;
   return {
     mode: 'choose',
-    prompt: `${cap(NUM_WORDS[a])} and ${NUM_WORDS[b]} more. How many altogether?`,
+    prompt: `${cap(NUM_WORDS[a])} ${kindName(kind, a)} and ${NUM_WORDS[b]} more. How many ${kindName(kind)} altogether?`,
     text: `${a} + ${b} = ?`,
     display: { type: 'sum', kind, a, b },
     choices: options(s, range(1, 6), count).map((v) => ({ text: String(v), say: NUM_WORDS[v], correct: v === s })),
