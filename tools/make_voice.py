@@ -3,7 +3,7 @@ Usage: python3 tools/make_voice.py  (reads tools/phrases.json, needs `pip instal
 import asyncio, hashlib, json, os, re
 import edge_tts
 
-VOICE, RATE, PITCH = 'en-US-EmmaNeural', '-7%', '+2Hz'
+VOICE, RATE, PITCH = 'en-US-AvaNeural', '-7%', '+2Hz'
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUT = os.path.join(ROOT, 'voice')
 
